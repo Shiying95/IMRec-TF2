@@ -31,10 +31,12 @@ def get_dataset_params(dataset, mode):
     func = None
 
     if dataset == 'taobao':
-        func_params['data_dir'] = '../data/taobao/'
+        func_params['data_dir'] = './data/taobao/'
+        func_params['limit'] = 1 << 32
 
         if mode == 'train_500K':
             func_params['action_file_name'] = 'sample_action.csv'
+            func_params['limit'] = 1096000  # trunc records
 
         # set data time range
         for key, value in zip(('month_begin', 'day_begin', 'month_end', 'day_end'), (11, 25, 12, 2)):
@@ -45,7 +47,7 @@ def get_dataset_params(dataset, mode):
     return func_params, func
 
 
-def preprocess_tb_data(data_dir, action_file_name, cold_start, month_begin, day_begin, month_end, day_end, item_intention):
+def preprocess_tb_data(data_dir, action_file_name, cold_start, month_begin, day_begin, month_end, day_end, limit):
     print('Data Preprocessing'.center(50, '='))
 
     data = pd.read_csv(
@@ -79,20 +81,24 @@ def preprocess_tb_data(data_dir, action_file_name, cold_start, month_begin, day_
     # sort by action time
     data = data.sort_values(by=['action_time'])
 
+    # trunc records
+    if limit < len(data):
+        print(f'Total records: {len(data)}, limit: {limit}')
+        data = data[:limit]
+
     re_encode_cols = ['user_id', 'item_id', 'cate', 'type']
-    df, item_features = prepare_dataset(data, cold_start, item_intention, re_encode_cols)
+    df, item_features = prepare_dataset(data, cold_start, re_encode_cols)
 
     return df, item_features
 
 
-def prepare_dataset(data, cold_start, item_intention, re_encode_cols):
+def prepare_dataset(data, cold_start, re_encode_cols):
     """
 
 
     Args:
         data (pd.DataFrame)
         cold_start (int)
-        item_intention (boll)
         re_encode_cols (list)
 
     Returns:
@@ -145,12 +151,8 @@ def prepare_dataset(data, cold_start, item_intention, re_encode_cols):
             data.drop(old_col, axis=1, inplace=True)
             print('Encoding for {}: min={}, max={}'.format(col, data[col].min(), data[col].max()))
 
-    # intention = |type| * (cate - 1) + type; if in item_intention mode, use item instead of cate
-    if item_intention:
-        intention_col = 'item_id'
-    else:
-        intention_col = 'cate'
 
+    intention_col = 'cate'
     col = 'intention'
 
     n_type = data['type'].max()
@@ -366,7 +368,6 @@ def create_dataset(
 def get_data(dataset='jd', mode='debug', redump=False,
              embed_dim=32, maxlen=20,
              train_neg_ratio=1, test_neg_ratio=100, cold_start=5,
-             item_intention=False,
              recurrent=True,
              ):
     """ Read data from pickle if it exists or generate data
@@ -380,7 +381,6 @@ def get_data(dataset='jd', mode='debug', redump=False,
         train_neg_ratio: int, the number of negtive samples for on positve sample in train dataset
         test_neg_ratio: int, the number of negtive samples for on positve sample in validation/test datasets
         cold_start: int
-        item_intention: bool, use item in intention definition
         recurrent: bool, if to generate train dataset recurrently
 
     Returns:
@@ -392,7 +392,6 @@ def get_data(dataset='jd', mode='debug', redump=False,
     train_neg_ratio = train_neg_ratio
     test_neg_ratio = test_neg_ratio
     cold_start = cold_start
-    item_intention = item_intention
     recurrent = recurrent
 
     print(f'Dataset: {dataset}')
@@ -407,8 +406,6 @@ def get_data(dataset='jd', mode='debug', redump=False,
     data_dir = params['data_dir']
     addition = ''
 
-    if item_intention:
-        addition += '_item_intention'
     if recurrent:
         addition += '_recurrent'
 
@@ -439,7 +436,6 @@ def get_data(dataset='jd', mode='debug', redump=False,
         print('Generating Data'.center(50, '='))
 
         params['cold_start'] = cold_start
-        params['item_intention'] = item_intention
 
         # prepare dataset
         data, item_features = prepare_dataset_func(**params)
@@ -473,7 +469,6 @@ if __name__ == '__main__':
         dataset='taobao', mode='train_500K',
         redump=False, embed_dim=100, maxlen=60, cold_start=5,
         train_neg_ratio=1, test_neg_ratio=1000,
-        item_intention=False,
         )
 
     print('Len of train, val and test:')

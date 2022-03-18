@@ -24,9 +24,6 @@ class IMRec(Model):
         for param in config:
             setattr(self, param, config[param])
 
-        if self.without_il:
-            self.model_name += '-WOIL'
-
         # feature columns
         self.user_fea_col = feature_columns['user_id']
         self.item_fea_col = feature_columns['item_id']
@@ -132,14 +129,13 @@ class IMRec(Model):
         pos_intention_score = cal_intention_score(target_intention_pos_inputs)
         neg_intention_score = cal_intention_score(target_intention_neg_inputs)
 
-        if not self.without_il:
-            intention_loss_inputs = (
-                pos_intention_score,
-                neg_intention_score,
-                tf.expand_dims(target_intention_pos_inputs, axis=-1),
-                tf.expand_dims(target_intention_neg_inputs, axis=-1),
-                )
-            self.intentionloss(intention_loss_inputs)
+        intention_loss_inputs = (
+            pos_intention_score,
+            neg_intention_score,
+            tf.expand_dims(target_intention_pos_inputs, axis=-1),
+            tf.expand_dims(target_intention_neg_inputs, axis=-1),
+            )
+        self.intentionloss(intention_loss_inputs)
 
         pos_score = cal_score(target_item_pos_inputs, pos_intention_score)
         neg_score = cal_score(target_item_neg_inputs, neg_intention_score)
@@ -199,7 +195,6 @@ def test_model():
         embed_reg=1e-6,
         alpha=0.8,
         att_len=5,
-        without_il=False,
         )
 
     model = IMRec(features, config)

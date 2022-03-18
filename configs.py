@@ -22,7 +22,6 @@ _model_config.update(
         att_len=2,
         embed_reg=1e-6,
         activation='relu',
-        without_il=False,
         )
     )
 
@@ -36,7 +35,6 @@ _ds_config.update(
         cold_start=5,
         embed_dim=100,
         maxlen=60,
-        item_intention=False,
         )
     )
 

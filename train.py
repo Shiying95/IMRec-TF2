@@ -29,16 +29,9 @@ parser.add_argument('--verbose', default=1, type=int)
 parser.add_argument('--patience', default=3, type=int)
 
 # some key arguments in config.py, can be overwritten by passing command line arguments
-# experimental args
-parser.add_argument('--learning_rate', default=-1, type=float)
-parser.add_argument('--batch_size', default=-1, type=int)
-# dataset args
 parser.add_argument('--embed_dim', default=-1, type=int)
-# IMRec model args
 parser.add_argument('--att_len', default=-1, type=int)
 parser.add_argument('--alpha', default=-1, type=float)
-parser.add_argument('--without_il', default=-1, type=int)
-parser.add_argument('--item_intention', default=-1, type=int)
 
 args, unknown = parser.parse_known_args()
 
@@ -94,22 +87,18 @@ learning_rate = exp_config['learning_rate']
 batch_size = exp_config['batch_size']
 
 # dataset args
-embed_dim = args.embed_dim if args.embed_dim > -1 else ds_config['embed_dim']
-item_intention = args.item_intention if args.item_intention > -1 else ds_config['item_intention']
+embed_dim = args.embed_dim if args.embed_dim != -1 else ds_config['embed_dim']
 recurrent = False if model_type == 'SASRec' else True
-
 ds_config.update(
     embed_dim=embed_dim,
-    item_intention=item_intention,
     recurrent=recurrent,
     )
 
 # IMRec model args
 if model_type == 'IMRec':
-    att_len = args.att_len if args.att_len > -1 else model_config['att_len']
-    alpha = args.alpha if args.alpha > -1 else model_config['alpha']
-    without_il = args.without_il if args.without_il > -1 else model_config['without_il']
-    model_config.update(att_len=att_len, alpha=alpha, without_il=without_il)
+    att_len = args.att_len if args.att_len != -1 else model_config['att_len']
+    alpha = args.alpha if args.alpha != -1 else model_config['alpha']
+    model_config.update(att_len=att_len, alpha=alpha)
 
 exp_args = {}
 print('Experimental Args'.center(50, '='))
@@ -160,7 +149,7 @@ if __name__ == '__main__':
                       metrics=[HR(K=val_K, name=val_metrics)],
                       )
 
-        log_dir = '../log'
+        log_dir = './log'
         os.makedirs(log_dir, exist_ok=True)
 
         model_name = model.model_name
@@ -170,8 +159,6 @@ if __name__ == '__main__':
         if args.model_type == 'IMRec':
             para_info += f'_len_{att_len}'
             para_info += f'_a_{alpha}'
-            if item_intention:
-                para_info += '_II'
 
         exp_dir = f'{log_dir}/{para_info}'
         os.makedirs(exp_dir, exist_ok=True)
