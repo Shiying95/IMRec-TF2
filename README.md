@@ -1,4 +1,4 @@
-# IMRec-tf2
+# IMRec-TF2
 This is the TensorFlow 2 implementation for the paper:
 An Intention-aware Markov Chain based Method for Top-K Recommendation (link)
 
