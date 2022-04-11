@@ -24,6 +24,9 @@ Experimental settings are defined in `config.py`. For easy use, some of the sett
 python train.py --dataset taobao --mode train_500K --model IMRec --embed_dim 50
 ```
 
+The model is evaluated on the test datasets automatically at the end of each epoch. Check the experimental results as well as the saved models in the `log` folder.
+
+
 ## Key Arguments
 Some key arguments:
 
@@ -34,3 +37,27 @@ Some key arguments:
 `att_len`: the order of the Markov chain
 
 `alpha`: the long-term and short-term preference weighting factor
+
+
+## Model Checkpoint
+We provide the best model of taobao-500K dataset for you to test, please download it from [link](https://pan.baidu.com/s/1nGQ4KZuOiYALuRZVNM_8DQ) (password: gusw). To load the model, run the following python scripts:
+
+```python
+
+import tensorflow as tf
+from module import RecordLoss, RecordMetrics, HR, MRR
+
+model_path = 'best_model/'  # the folder of the saved model
+model = tf.keras.models.load_model(
+	model_path,
+	custom_objects={
+	   'RecordLoss': RecordLoss,
+	   'RecordMetrics': RecordMetrics,
+	   'HR': HR,
+	   'MRR': MRR,
+	   })
+```
+
+
+## Acknowledgement
+Many thanks to the work of Ziyao Geng ([link](https://github.com/ZiyaoGeng/Recommender-System-with-TF2.0)), for providing TensorFlow2 implementation of several recommendation algorithms.

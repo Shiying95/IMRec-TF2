@@ -18,8 +18,8 @@ _model_config.update(
     dataset='taobao',
     mode='train_500K',
     update_dict=dict(
-        alpha=0.5,
-        att_len=2,
+        alpha=0.1,
+        att_len=3,
         embed_reg=1e-6,
         activation='relu',
         )
