@@ -5,18 +5,74 @@ Created on Thu Jan 14 11:08:26 2021
 @author: Shiying Ni
 """
 import time
+import IPython
 import numpy as np
+
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from tensorflow.keras.layers import Layer
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Input, Layer
+
+
+class MyConfig(object):
+    def __init__(self, models, datasets, modes):
+        config = {}
+        for model in models:
+            config[model] = {}
+            for dataset in datasets:
+                config[model][dataset] = {}
+                for mode in modes:
+                    config[model][dataset][mode] = {}
+
+        self.config = config
+        self.datasets = datasets
+        self.modes = modes
+        self.models = models
+
+    def update(self, model=None, dataset=None, mode=None, update_dict=None):
+        models = []
+        datasets = []
+        modes = []
+
+        def trans(key, default):
+            if not key:
+                return default
+            elif isinstance(key, list):
+                return key
+            else:
+                return [key]
+
+        models = trans(model, self.models)
+        datasets = trans(dataset, self.datasets)
+        modes = trans(mode, self.modes)
+
+        for model in models:
+            for dataset in datasets:
+                for mode in modes:
+                    try:
+                        self.config[model][dataset][mode].update(update_dict)
+                    except Exception as e:
+                        print(f'Error when update model [{model}] dataset [{dataset}] mode [{mode}]: {e}')
+
+    def get_all_configs(self):
+        return self.config
+
+    def get(self, model=None, dataset=None, mode=None):
+        try:
+            return self.config[model][dataset][mode]
+        except Exception:
+            model = model if model in self.models else self.models[0]
+            dataset = dataset if dataset in self.datasets else self.datasets[0]
+            mode = mode if mode in self.modes else self.modes[0]
+            print(f'Cannot get configs. Switch to default configs: {model} {dataset} {mode}.')
+            return self.config[model][dataset][mode]
 
 
 class TimestepWeight(Layer):
     def __init__(self, att_len=1, embed_reg=1e-6, **kwargs):
         super(TimestepWeight, self).__init__(**kwargs)
-
         self.w = self.add_weight(
-            name='timestep_sacle_weight',
+            name='timestep_scale_weight',
             shape=(att_len, ), initializer="random_normal",
             trainable=True,
             )
@@ -25,25 +81,25 @@ class TimestepWeight(Layer):
         self.embed_reg = embed_reg
 
     def call(self, inputs, mask, **kwargs):
-        """ return weighted inputs"""
-
-        act_func = tf.nn.softmax
-        mask = tf.expand_dims(mask, axis=-1)
+        # inputs: (None, att_len, 1(000), embed_dim)
+        # w: (att_len, 1, 1)
+        # mask: # (None, att_len, 1)
 
         self.add_loss(self.embed_reg * tf.nn.l2_loss(self.w))
-        act_w = act_func(self.w)  # (1, att_len)
-        w = tf.reshape(act_w, [self.att_len, 1, 1])  # (att_len, 1, 1)
+        act_w = tf.nn.softmax(self.w)  # (1, att_len)
+        w = tf.reshape(act_w, [self.att_len, 1])  # (att_len, 1)
 
-        # deal with masked data
-        mask_w = tf.multiply(w, mask)  # (None, att_len, 1, embed_dim)
-        mask_sum = 1 / tf.reduce_sum(mask_w, axis=1, keepdims=True)
-        n_mask_w = tf.multiply(mask_w, mask_sum)  # (None, att_len, 1, embed_dim)
-
+        # normalize the weights
+        mask_w = tf.multiply(w, mask)  # (None, att_len, 1)
+        mask_sum = 1 / tf.reduce_sum(mask_w, axis=1, keepdims=True)  # (None, 1, 1)
+        n_mask_w = tf.multiply(mask_w, mask_sum)  # (None, att_len, 1)
+        n_mask_w = tf.expand_dims(n_mask_w, axis=-1)  # (None, att_len, 1, 1)
         output = tf.multiply(inputs, n_mask_w)  # (None, att_len, 1, embed_dim)
 
         return output
 
     def get_config(self):
+        # return config
         base_config = super(TimestepWeight, self).get_config()
         return {**base_config,
                 "att_len": self.att_len,
@@ -51,44 +107,41 @@ class TimestepWeight(Layer):
 
 
 class ItemLoss(Layer):
-
-    def __init__(self, **kwargs):
+    def __init__(self, from_logits=True, **kwargs):
         super(ItemLoss, self).__init__(**kwargs)
+        self.from_logits = from_logits
 
     def call(self, inputs, **kwargs):
-        """ Calculate item loss from logits"""
-
+        # from logits
         pos_pred, neg_pred = inputs
         pos_true = K.ones_like(pos_pred)
-        pos_loss = K.binary_crossentropy(pos_true, pos_pred, from_logits=True)
+        pos_loss = K.binary_crossentropy(pos_true, pos_pred, from_logits=self.from_logits)
         pos_loss = K.mean(pos_loss)
 
         neg_true = K.zeros_like(neg_pred)
-        neg_loss = K.binary_crossentropy(neg_true, neg_pred, from_logits=True)
+        neg_loss = K.binary_crossentropy(neg_true, neg_pred, from_logits=self.from_logits)
         neg_loss = K.mean(neg_loss)
 
         loss = (pos_loss + neg_loss) / 2
-
         self.add_loss(loss)
         self.add_metric(loss, aggregation="mean", name="itemloss")
-
         return(loss)
 
 
 class IntentionLoss(Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, from_logits=True, **kwargs):
         super(IntentionLoss, self).__init__(**kwargs)
+        self.from_logits = from_logits
 
     def call(self, inputs, **kwargs):
-        """ Calculate intention loss from logits"""
         # from logits
         pos_pred, neg_pred, pos_inputs, neg_inputs = inputs
         pos_true = K.ones_like(pos_pred)
-        pos_loss = K.binary_crossentropy(pos_true, pos_pred, from_logits=True)
+        pos_loss = K.binary_crossentropy(pos_true, pos_pred, from_logits=self.from_logits)
         pos_loss = K.mean(pos_loss)
 
-        neg_true = tf.cast(tf.where(tf.equal(pos_inputs, neg_inputs), 1, 0), tf.float32)  # some neg samples have true intention predictions
-        neg_loss = K.binary_crossentropy(neg_true, neg_pred, from_logits=True)
+        neg_true = tf.cast(tf.where(tf.equal(pos_inputs, neg_inputs), 1, 0), tf.float32)
+        neg_loss = K.binary_crossentropy(neg_true, neg_pred, from_logits=self.from_logits)
         neg_loss = K.mean(neg_loss)
 
         loss = (pos_loss + neg_loss) / 2
@@ -204,6 +257,11 @@ class RecordMetrics(tf.keras.callbacks.Callback):
             print(f'Callback @ epoch {epoch+1}: Evaluation time = {elapsed_time/60:.2f} min')
 
 
+class ClearTrainingOutput(tf.keras.callbacks.Callback):
+    def on_train_end(*args, **kwargs):
+        IPython.display.clear_output(wait=True)
+
+
 class MRR(tf.keras.metrics.Metric):
     def __init__(self, name='MRR', **kwargs):
         super(MRR, self).__init__(name=name, **kwargs)
@@ -237,9 +295,10 @@ class HR(tf.keras.metrics.Metric):
         self.K = K
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)  # argsort默认从小到大排序，故取负
         rank = tf.argsort(tf.argsort(y_pred))[:, 0]
         rank = y_pred.shape[1] - 1 - rank
+        # tf.print(rank)
 
         self.count.assign_add(tf.shape(y_pred)[0])
         for r in rank:
@@ -263,7 +322,7 @@ class NDCG(tf.keras.metrics.Metric):
         self.K = K
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)  # argsort默认从小到大排序，故取负
         rank = tf.argsort(tf.argsort(y_pred))[:, 0]
         rank = y_pred.shape[1] - 1 - rank
         self.count.assign_add(tf.cast(tf.shape(y_pred)[0], tf.float32))
@@ -330,7 +389,7 @@ def ndcg(rank, K):
     return ndcg / counts
 
 def ap(rank, K):
-    counts = rank.shape[0]
+    counts = rank.shape[0]  # 用户数量
     ap = 0
     for r in rank:
         if r < K:
@@ -345,57 +404,37 @@ def mrr(rank):
     return rr / counts
 
 
-# define config class to manage configs
-# config structure: config = {model: {dataset: {mode: {config_name: config_value}}}}
-class MyConfig(object):
-    def __init__(self, models, datasets, modes):
-        config = {}
-        for model in models:
-            config[model] = {}
-            for dataset in datasets:
-                config[model][dataset] = {}
-                for mode in modes:
-                    config[model][dataset][mode] = {}
+def summary(model):
 
-        self.config = config
-        self.datasets = datasets
-        self.modes = modes
-        self.models = models
+    inputs = {
+        'user_id': Input(shape=(1, ), dtype=tf.int32, name='user_id'),
+        'item_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='item_seq'),
+        'cate_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='cate_seq'),
+        'type_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='type_seq'),
+        'intention_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='intention_seq'),
+        'next_item_pos_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_item_pos_seq'),
+        'next_item_neg_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_item_neg_seq'),
+        'next_cate_pos_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_cate_pos_seq'),
+        'next_cate_neg_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_cate_neg_seq'),
+        'next_type_pos_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_type_pos_seq'),
+        'next_type_neg_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_type_neg_seq'),
+        'next_intention_pos_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_intention_pos_seq'),
+        'next_intention_neg_seq': Input(shape=(model.maxlen,), dtype=tf.int32, name='next_intention_neg_seq'),
+        'target_item_pos': Input(shape=(1, ), dtype=tf.int32, name='target_item_pos'),
+        'target_item_neg': Input(shape=(1, ), dtype=tf.int32, name='target_item_neg'),
+        'target_cate_pos': Input(shape=(1, ), dtype=tf.int32, name='target_cate_pos'),
+        'target_cate_neg': Input(shape=(1, ), dtype=tf.int32, name='target_cate_neg'),
+        'target_type_pos': Input(shape=(1, ), dtype=tf.int32, name='target_type_pos'),
+        'target_type_neg': Input(shape=(1, ), dtype=tf.int32, name='target_type_neg'),
+        'target_intention_pos': Input(shape=(1, ), dtype=tf.int32, name='target_intention_pos'),
+        'target_intention_neg': Input(shape=(1, ), dtype=tf.int32, name='target_intention_neg'),
+              }
 
-    def update(self, model=None, dataset=None, mode=None, update_dict=None):
-        models = []
-        datasets = []
-        modes = []
+    Model(inputs=inputs,
+          outputs=model.call(inputs)).summary()
 
-        def trans(key, default):
-            if not key:
-                return default
-            elif isinstance(key, list):
-                return key
-            else:
-                return [key]
 
-        models = trans(model, self.models)
-        datasets = trans(dataset, self.datasets)
-        modes = trans(mode, self.modes)
-
-        for model in models:
-            for dataset in datasets:
-                for mode in modes:
-                    try:
-                        self.config[model][dataset][mode].update(update_dict)
-                    except Exception as e:
-                        print(f'Error when update model [{model}] dataset [{dataset}] mode [{mode}]: {e}')
-
-    def get_all_configs(self):
-        return self.config
-
-    def get(self, model=None, dataset=None, mode=None):
-        try:
-            return self.config[model][dataset][mode]
-        except Exception:
-            model = model if model in self.models else self.models[0]
-            dataset = dataset if dataset in self.datasets else self.datasets[0]
-            mode = mode if mode in self.modes else self.modes[0]
-            print(f'Cannot get configs. Switch to default configs: {model} {dataset} {mode}.')
-            return self.config[model][dataset][mode]
+features = {}
+for col in ['user_id', 'item', 'type', 'cate', 'intention']:
+    features[col] = {'feat_num': 10, 'embed_dim': 8}
+features['maxlen'] = 30

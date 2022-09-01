@@ -18,10 +18,13 @@ _model_config.update(
     dataset='taobao',
     mode='train_500K',
     update_dict=dict(
-        alpha=0.1,
-        att_len=3,
+        alpha=0.9,
+        att_len=7,
         embed_reg=1e-6,
         activation='relu',
+        BPR=True,
+        without_il=False,
+        time_threshold=0,
         )
     )
 
@@ -31,10 +34,13 @@ _ds_config.update(
     mode='train_500K',
     update_dict=dict(
         train_neg_ratio=1,
-        test_neg_ratio=1000,
+        test_neg_ratio=3000,
         cold_start=5,
         embed_dim=100,
-        maxlen=60,
+        maxlen=70,
+        recurrent=True,
+        rand_neg_intention=False,
+        item_intention=False,
         )
     )
 
