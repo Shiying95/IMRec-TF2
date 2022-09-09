@@ -58,7 +58,3 @@ If you want to save checkpoints when training, run:
 ```
 python train.py --dataset taobao --mode train_500K --model IMRec --save_weights 1
 ```
-
-
-## Acknowledgement
-Many thanks to the work of Ziyao Geng ([link](https://github.com/ZiyaoGeng/Recommender-System-with-TF2.0)), for providing TensorFlow2 implementation of several recommendation algorithms.
