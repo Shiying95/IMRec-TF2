@@ -3,10 +3,10 @@ This is the TensorFlow 2 implementation for the paper:
 An Intention-aware Markov Chain based Method for Top-K Recommendation ([link](https://ieeexplore.ieee.org/document/9997243))
 
 Corrections to the paper:
-1. Page 5, equation (13): $$\argmin_{\Theta}\mathcal{L}_{Item}+\mathcal{L}_{Intention}+\mathcal{L}_{Reg}$$
-2. Page 10, left column, the last 4 line: $\mathcal{L}_{Item}=-\frac{1}{n}\sum_{j=1}^n(\log{(\sigma(\hat{p}_{u,t,i^u_t}))}+\log{(\sigma(1-\hat{p}_{u,t,{i'}^u_t}))})$
+1. Page 5, equation (13): $\argmin_{\Theta}L_{Item}+L_{Intention}+L_{Reg}$
+2. Page 10, left column, the last 4 line: $L_{Item}=-\frac{1}{n}\sum_{j=1}^n(\log{(\sigma(\hat{p}_{u,t,i^u_t}))}+\log{(\sigma(1-\hat{p}_{u,t,{i'}^u_t}))})$
 3. Page 10, right column, line 24: There is also a larger performance loss in 5M datasets than in 500K datasets.
-3. Page 10. right column, line 27: A likely reason is that Taobao and 5M datasets have much more items and sparser item-item transitions.
+4. Page 10. right column, line 27: A likely reason is that Taobao and 5M datasets have much more items and sparser item-item transitions.
 
 ## Set Up
 Run
