@@ -1,8 +1,6 @@
 """
 Created on January 4
 
-create jd dataset
-
 @author: Shiying Ni
 """
 import pandas as pd
@@ -14,7 +12,7 @@ from datetime import datetime
 import pickle
 import os
 
-random.seed(17)  # 为了数据的可复制性
+random.seed(17)  # for reproductivity
 
 
 def get_dataset_params(dataset, mode):
@@ -185,7 +183,6 @@ def create_dataset(
         hist_cols.append('timestamp')
 
     train_data, val_data, test_data = [], [], []
-    skip_list = []
 
     # generate negative samples from the items which users have not interacted with currently
     def gen_neg_samples(pos_list, max_id):
@@ -193,7 +190,6 @@ def create_dataset(
         def gen_neg_item(i):
             neg = pos_list[0]
             while neg in pos_list[:i + 1]:
-                skip_list.append(neg)
                 neg = random.randint(1, max_id)
             return neg
 
@@ -289,7 +285,6 @@ def create_dataset(
                     break
 
             flag += 1
-    print(len(skip_list))
 
     print('Data Info'.center(50, '='))
     data_info = {}
@@ -345,7 +340,7 @@ def create_dataset(
     return data_info, train, val, test, summary
 
 
-def get_data(dataset='jd', mode='debug', regenerate=False,
+def get_data(dataset='taobao', mode='debug', regenerate=False,
              embed_dim=32, maxlen=20,
              train_neg_ratio=1, test_neg_ratio=100, cold_start=5,
              item_intention=False, rand_neg_intention=False,

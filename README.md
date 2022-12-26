@@ -4,9 +4,11 @@ An Intention-aware Markov Chain based Method for Top-K Recommendation ([link](ht
 
 Corrections to the paper:
 1. Page 5, equation (13): <img src="http://chart.googleapis.com/chart?cht=tx&chl=argmin_{\Theta}\quad\quad\mathcal{L}_{Item}%2B\mathcal{L}_{Intention}%2B\mathcal{L}_{Reg}" style="border:none;">
-3. Page 10, left column, the last 4 line: <img src="http://chart.googleapis.com/chart?cht=tx&chl=\mathcal{L}_{Item}=-\frac{1}{n}\sum_{j=1}^n(\log{(\sigma(\hat{p}_{u,t,i^u_t}))}%2B\log{(\sigma(1-\hat{p}_{u,t,{i'}^u_t}))})" style="border:none;">
-4. Page 10, right column, line 24: There is also a larger performance loss in 5M datasets than in 500K datasets.
-5. Page 10. right column, line 27: A likely reason is that Taobao and 5M datasets have much more items and sparser item-item transitions.
+2. Page 10, left column, the 4th line from the bottom: <img src="http://chart.googleapis.com/chart?cht=tx&chl=\mathcal{L}_{Item}=-\frac{1}{n}\sum_{j=1}^n(\log{(\sigma(\hat{p}_{u,t,i^u_t}))}%2B\log{(\sigma(1-\hat{p}_{u,t,{i'}^u_t}))})" style="border:none;">
+3. Page 11, left column, line 10: There is also a larger performance loss in 5M datasets than in 500K datasets.
+4. Page 11, left column, line 13: A likely reason is that Taobao and 5M datasets have much more items and sparser item-item transitions.
+
+
 ## Set Up
 Run
 ```
