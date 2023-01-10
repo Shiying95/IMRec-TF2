@@ -42,11 +42,11 @@ def prepare_dataset(data, cold_start, item_intention, re_encode_cols):
 
     while True:
         before = len(data_target)
-        # delete items whose # click < cold_start
+        # delete items whose # interactions < cold_start
         data_target['users_per_item'] = data_target.groupby(['item'])['user_id'].transform('count')
         data_target = data_target[data_target['users_per_item'] >= cold_start]
 
-        # delete users whose # click < cold_start
+        # delete users whose # interactions < cold_start
         data_target['items_per_user'] = data_target.groupby(['user_id'])['item'].transform('count')
         data_target = data_target[data_target['items_per_user'] >= cold_start]
         after = len(data_target)
@@ -196,7 +196,7 @@ def create_dataset(
         def gen_train_neg_items(ratio):
             neg_list = []
             seq_len = len(pos_list)
-            for i in range(seq_len - 1):
+            for i in range(seq_len - 2):
                 for n in range(ratio):
                     neg_list.append(gen_neg_item(i))
             return neg_list
@@ -277,7 +277,7 @@ def create_dataset(
                 val_data.append([user_id] + hist_i + target_pos_i + [neg_item, neg_intention])
 
             else:  # train: neg:pos = train_neg_ratio
-                neg_item = train_neg_list[train_neg_ratio*(i-1): train_neg_ratio*i]
+                neg_item = train_neg_list[train_neg_ratio*i: train_neg_ratio*(i+1)]
                 neg_intention = [(cate_list[item] - 1) * n_type + 1 for item in neg_item]
                 train_data.append([user_id] + hist_i + target_pos_i + [neg_item, neg_intention])
 
