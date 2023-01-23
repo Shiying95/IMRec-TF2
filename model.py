@@ -163,7 +163,7 @@ class IMRec(Model):
                     loss = -tf.math.log(tf.nn.sigmoid(pos_intention_score - neg_intention_score))
                     mask_loss = tf.cast(tf.where(tf.equal(target_intention_pos_inputs, target_intention_neg_inputs), 0, 1), tf.float32)
                     mask_loss = tf.expand_dims(mask_loss, -1)
-                    intention_loss = tf.reduce_sum(loss * mask_loss) / tf.reduce_sum(mask_loss)
+                    intention_loss = tf.reduce_mean(loss * mask_loss)
                     self.add_loss(intention_loss)
                     self.add_metric(intention_loss, aggregation="mean", name="intentionloss")
                 else:
